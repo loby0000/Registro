@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mostrar Registrados</title>
+  <link rel="stylesheet" href="Mostrar.css">
+</head>
+<body>
+  <section class="container mt-4" style="max-width: 800px">
+    <div class="text-center text-white" id="titulo-formulario">
+      <h2 class="p-3">Usuarios Registrados</h2>
+    </div>
+
+    <!-- Sección de búsqueda y actualización -->
+    <div id="buscar-seccion">
+      <button id="btn-actualizar" type="button">Actualizar</button>
+      <input type="text" id="buscar-telefono" placeholder="Buscar por número de teléfono">
+      <button id="btn-buscar" type="button">Buscar</button>
+      <button id="btn-eliminar" type="button">Eliminar</button>
+    </div>
+
+    <table class="table table-bordered table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Email</th>
+          <th>Nombre</th>
+          <th>Teléfono</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-usuarios">
+        <!-- Los datos se llenarán aquí con JavaScript -->
+      </tbody>
+    </table>
+
+    <button id="btn-volver" type="button" class="btn btn-secondary w-100 fs-5 mb-3">Volver</button>
+  </section>
+
+  <!-- Formulario flotante para editar usuario -->
+  <div id="form-editar" class="form-editar">
+    <div class="form-editar-contenido">
+      <h3>Editar Usuario</h3>
+      <input type="hidden" id="editar-id" /> <!-- Campo para el ID del usuario -->
+      <label for="editar-email">Email:</label>
+      <input type="email" id="editar-email" />
+      <label for="editar-nombre">Nombre:</label>
+      <input type="text" id="editar-nombre" />
+      <label for="editar-telefono">Teléfono:</label>
+      <input type="text" id="editar-telefono" />
+      <button id="btn-guardar-cambios" type="button">Actualizar</button>
+      <button id="btn-cerrar-editar" type="button">Cerrar</button>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    let usuarioActualId = null;
+
+    function mostrarUsuarios() {
+      fetch('http://localhost:3000/users')
+        .then(response => response.json())
+        .then(data => {
+          const tablaUsuarios = document.getElementById('tabla-usuarios');
+          tablaUsuarios.innerHTML = '';
+          if (data.length === 0) {
+            tablaUsuarios.innerHTML = '<tr><td colspan="4">No hay usuarios registrados.</td></tr>';
+          } else {
+            data.forEach(user => {
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                <td>${user.id}</td>
+                <td>${user.email}</td>
+                <td>${user.nombre}</td>
+                <td>${user.telefono}</td>
+              `;
+              tablaUsuarios.appendChild(row);
+            });
+
+            // Eliminar la columna de edición si existe
+            const thOpciones = document.getElementById('columna-opciones');
+            if (thOpciones) {
+              thOpciones.remove();
+            }
+          }
+        })
+        .catch(error => console.error('Error al cargar los datos:', error));
+    }
+
+    mostrarUsuarios();
+
+    document.getElementById('btn-actualizar').addEventListener('click', mostrarUsuarios);
+
+    document.getElementById('btn-buscar').addEventListener('click', function() {
+      const telefonoBuscado = document.getElementById('buscar-telefono').value.trim();
+      if (telefonoBuscado) {
+        fetch(`http://localhost:3000/users?telefono=${telefonoBuscado}`)
+          .then(response => response.json())
+          .then(data => {
+            const tablaUsuarios = document.getElementById('tabla-usuarios');
+            tablaUsuarios.innerHTML = '';
+            if (data.length > 0) {
+              data.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                  <td>${user.id}</td>
+                  <td>${user.email}</td>
+                  <td>${user.nombre}</td>
+                  <td>${user.telefono}</td>
+                  <td><button class="btn-editar" data-id="${user.id}">Editar</button></td>
+                `;
+                tablaUsuarios.appendChild(row);
+              });
+
+              // Agregar el encabezado "Opciones" a la tabla si no existe
+              const thead = document.querySelector('thead tr');
+              if (!document.getElementById('columna-opciones')) {
+                const thOpciones = document.createElement('th');
+                thOpciones.id = 'columna-opciones';
+                thOpciones.textContent = 'Opciones';
+                thead.appendChild(thOpciones);
+              }
+
+              // Agregar manejadores de eventos para los botones de edición
+              document.querySelectorAll('.btn-editar').forEach(button => {
+                button.addEventListener('click', function() {
+                  usuarioActualId = this.dataset.id;
+                  fetch(`http://localhost:3000/users/${usuarioActualId}`)
+                    .then(response => response.json())
+                    .then(user => {
+                      document.getElementById('editar-id').value = user.id;
+                      document.getElementById('editar-email').value = user.email;
+                      document.getElementById('editar-nombre').value = user.nombre;
+                      document.getElementById('editar-telefono').value = user.telefono;
+                      document.getElementById('form-editar').style.display = 'flex';
+                    })
+                    .catch(error => console.error('Error al cargar los datos del usuario:', error));
+                });
+              });
+            } else {
+              tablaUsuarios.innerHTML = '<tr><td colspan="5">No se encontraron usuarios con ese número de teléfono.</td></tr>';
+            }
+          })
+          .catch(error => console.error('Error al buscar el usuario:', error));
+      } else {
+        mostrarUsuarios();
+        // Remover la columna "Opciones" si se muestra la lista completa de usuarios
+        const thOpciones = document.getElementById('columna-opciones');
+        if (thOpciones) {
+          thOpciones.remove();
+        }
+      }
+    });
+
+    document.getElementById('btn-eliminar').addEventListener('click', function() {
+      const telefonoBuscado = document.getElementById('buscar-telefono').value.trim();
+      if (telefonoBuscado) {
+        fetch(`http://localhost:3000/users?telefono=${telefonoBuscado}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.length > 0) {
+              const userId = data[0].id; // Suponiendo que solo hay un usuario con ese teléfono
+              fetch(`http://localhost:3000/users/${userId}`, { method: 'DELETE' })
+                .then(response => {
+                  if (response.ok) {
+                    mostrarUsuarios(); // Actualiza la lista de usuarios
+                    console.log('Usuario eliminado correctamente.');
+                  } else {
+                    console.error('Error al eliminar el usuario.');
+                  }
+                })
+                .catch(error => console.error('Error al eliminar el usuario:', error));
+            } else {
+              console.error('No se encontró un usuario con ese número de teléfono.');
+            }
+          })
+          .catch(error => console.error('Error al buscar el usuario:', error));
+      } else {
+        console.error('Por favor, ingrese un número de teléfono para eliminar.');
+      }
+    });
+
+    document.getElementById('btn-guardar-cambios').addEventListener('click', function() {
+      const id = document.getElementById('editar-id').value;
+      const email = document.getElementById('editar-email').value;
+      const nombre = document.getElementById('editar-nombre').value;
+      const telefono = document.getElementById('editar-telefono').value;
+
+      if (email && nombre && telefono) {
+        const user = { email, nombre, telefono };
+        fetch(`http://localhost:3000/users/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(user)
+        })
+        .then(response => {
+          if (response.ok) {
+            mostrarUsuarios();
+            document.getElementById('form-editar').style.display = 'none';
+          } else {
+            console.error('Error al actualizar el usuario.');
+          }
+        })
+        .catch(error => console.error('Error al actualizar el usuario:', error));
+      } else {
+        console.error('Por favor, complete todos los campos.');
+      }
+    });
+
+    document.getElementById('btn-cerrar-editar').addEventListener('click', function() {
+      document.getElementById('form-editar').style.display = 'none';
+    });
+
+    // Funcionalidad del botón Volver
+    document.getElementById('btn-volver').addEventListener('click', function() {
+      window.location.href = 'index.html'; // Redirige a index.html
+    });
+  });
+  </script>
+</body>
+</html>
